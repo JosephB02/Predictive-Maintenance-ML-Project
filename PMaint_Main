@@ -1,0 +1,63 @@
+
+import sys
+import subprocess
+import importlib
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+import sklearn
+import matplotlib
+
+
+# Load the dataset
+df = pd.read_csv('ai4i2020.csv')
+
+# 1. Filter the data to show only Heat Dissipation Failures
+#hdf_failures = df[df['HDF'] == 1]
+
+# 2. Plot Process Temp vs Air Temp
+#plt.figure(figsize=(10,6))
+#sns.scatterplot(data=df, x='Air temperature [K]', y='Process temperature [K]', hue='Machine failure', alpha=0.5)
+#plt.title('Air vs Process Temperature: Identifying the Failure Zone')
+#plt.show()
+
+# Create the 'Power' feature (Rotational Speed * Torque)
+# We divide by a constant just to keep the numbers manageable
+df['Power'] = df['Rotational speed [rpm]'] * df['Torque [Nm]']
+
+# Create your 'Stress_Factor' (Tool Wear * Torque)
+df['Stress_Factor'] = df['Tool wear [min]'] * df['Torque [Nm]']
+
+# Let's see if our new Stress_Factor correlates with failure
+print(df[['Stress_Factor', 'Machine failure']].corr())
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+
+
+# 1. Define our Features (X) and our Target (y)
+features = ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]', 
+            'Torque [Nm]', 'Tool wear [min]', 'Power', 'Stress_Factor']
+X = df[features]
+y = df['Machine failure']
+
+# 2. Split data: 80% for training, 20% for testing the AI's "exam"
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 3. Initialize and Train the Model
+model = RandomForestClassifier(n_estimators=100)
+model.fit(X_train, y_train)
+
+
+# Get probabilities for the 'Failure' class (class 1)
+y_probs = model.predict_proba(X_test)[:, 1]
+
+# Set a custom threshold (e.g., 0.3 instead of 0.5)
+custom_threshold = 0.3
+y_pred_new = (y_probs >= custom_threshold).astype(int)
+
+# Now check your new classification report
+print(classification_report(y_test, y_pred_new))
